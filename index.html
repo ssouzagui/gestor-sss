@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Gestor SSS - Gastos</title>
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#1f4d42" />
+<link rel="icon" href="icon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="icon.svg" />
+<style>
+  /* ---- paleta: verde profundo (dinheiro/confiança) + creme + âmbar (reembolso/alerta) ---- */
+  :root{
+    --bg:#f7f3ec; --surface:#ffffff; --ink:#1c2621; --muted:#6b7a73;
+    --primary:#1f4d42; --primary-ink:#f7f3ec; --accent:#c97b2e; --accent-ink:#2a1a08;
+    --line:#e3ddd0; --good:#2f7a4d; --bad:#b5452f; --chip:#eef2ee;
+    --radius:14px; --font-display:"Manrope",system-ui,sans-serif; --font-body:system-ui,-apple-system,"Segoe UI",sans-serif;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#141a17; --surface:#1c241f; --ink:#eef0ec; --muted:#9aa89f;
+      --primary:#6fb79a; --primary-ink:#0c1512; --accent:#e2a360; --accent-ink:#2a1a08;
+      --line:#2c362f; --good:#6fb79a; --bad:#e08a73; --chip:#243029;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#141a17; --surface:#1c241f; --ink:#eef0ec; --muted:#9aa89f;
+    --primary:#6fb79a; --primary-ink:#0c1512; --accent:#e2a360; --accent-ink:#2a1a08;
+    --line:#2c362f; --good:#6fb79a; --bad:#e08a73; --chip:#243029; color-scheme:dark;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;margin:0;}
+  body{
+    background:var(--bg); color:var(--ink); font-family:var(--font-body);
+    display:flex; flex-direction:column; padding-bottom:env(safe-area-inset-bottom);
+  }
+  h1,h2,h3{font-family:var(--font-display); text-wrap:balance; margin:0;}
+  .topbar{
+    padding:16px 20px 12px; display:flex; align-items:center; justify-content:space-between;
+    padding-top:max(16px, env(safe-area-inset-top));
+  }
+  .topbar h1{font-size:1.15rem; color:var(--primary);}
+  .topbar .dot{width:8px;height:8px;border-radius:50%;}
+  .dot.on{background:var(--good);} .dot.off{background:var(--bad);}
+  main{flex:1; overflow-y:auto; padding:0 16px 24px;}
+  .screen{display:none;} .screen.active{display:block;}
+
+  .card{
+    background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);
+    padding:16px; margin-bottom:14px;
+  }
+  label{display:block; font-size:0.8rem; color:var(--muted); margin:14px 0 6px; font-weight:600;}
+  label:first-of-type{margin-top:0;}
+  input,select,textarea{
+    width:100%; padding:12px 14px; border:1.5px solid var(--line); border-radius:10px;
+    font-size:1rem; background:var(--bg); color:var(--ink); font-family:inherit;
+  }
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--primary); outline-offset:1px;}
+  .valor-wrap{position:relative;}
+  .valor-wrap .cur{position:absolute; left:14px; top:50%; transform:translateY(-50%); color:var(--muted); font-weight:700;}
+  .valor-wrap input{padding-left:38px; font-size:1.6rem; font-weight:800; font-variant-numeric:tabular-nums; font-family:var(--font-display);}
+
+  .row{display:flex; gap:10px;}
+  .row > *{flex:1;}
+
+  .toggle-btn{
+    display:flex; align-items:center; justify-content:space-between; width:100%;
+    padding:12px 14px; border:1.5px solid var(--line); border-radius:10px; background:var(--bg);
+    font-size:1rem; font-weight:600; color:var(--ink); margin-top:14px; cursor:pointer;
+  }
+  .toggle-btn .sw{width:42px; height:24px; border-radius:12px; background:var(--line); position:relative; transition:.15s;}
+  .toggle-btn .sw::after{content:"";position:absolute;width:18px;height:18px;border-radius:50%;background:#fff;top:3px;left:3px;transition:.15s;box-shadow:0 1px 2px rgba(0,0,0,.3);}
+  .toggle-btn.on{border-color:var(--accent);}
+  .toggle-btn.on .sw{background:var(--accent);}
+  .toggle-btn.on .sw::after{left:21px;}
+
+  .collapse{display:none; margin-top:4px;}
+  .collapse.show{display:block;}
+
+  .photo-box{
+    border:1.5px dashed var(--line); border-radius:10px; padding:16px; text-align:center;
+    color:var(--muted); margin-top:14px; cursor:pointer; position:relative; overflow:hidden;
+  }
+  .photo-box img{max-width:100%; max-height:180px; border-radius:8px; display:block; margin:0 auto;}
+  .photo-box input{position:absolute; inset:0; opacity:0; cursor:pointer;}
+
+  button.primary{
+    width:100%; padding:15px; margin-top:18px; border:none; border-radius:10px;
+    background:var(--primary); color:var(--primary-ink); font-size:1.05rem; font-weight:700;
+    font-family:var(--font-display); cursor:pointer;
+  }
+  button.primary:active{opacity:.85;}
+  button.secondary{
+    width:100%; padding:13px; margin-top:10px; border:1.5px solid var(--primary); border-radius:10px;
+    background:transparent; color:var(--primary); font-size:0.95rem; font-weight:700; cursor:pointer;
+  }
+  button.ghost{border:none;background:none;color:var(--muted);font-size:.85rem;text-decoration:underline;cursor:pointer;padding:6px 0;}
+
+  nav.tabs{
+    display:flex; border-top:1px solid var(--line); background:var(--surface);
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+  nav.tabs button{
+    flex:1; padding:10px 4px 8px; background:none; border:none; display:flex; flex-direction:column;
+    align-items:center; gap:3px; font-size:.68rem; color:var(--muted); font-weight:600; cursor:pointer;
+  }
+  nav.tabs button .ic{font-size:1.25rem;}
+  nav.tabs button.active{color:var(--primary);}
+
+  .metric{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px;}
+  .metric .lbl{font-size:.85rem; color:var(--muted); font-weight:600;}
+  .metric .val{font-family:var(--font-display); font-weight:800; font-size:1.05rem; font-variant-numeric:tabular-nums;}
+  .bar{height:8px; border-radius:5px; background:var(--chip); overflow:hidden; margin-bottom:2px;}
+  .bar > i{display:block; height:100%; background:var(--good); border-radius:5px;}
+  .bar > i.over{background:var(--bad);}
+  .subtle{font-size:.75rem; color:var(--muted);}
+
+  .pill{display:inline-block; padding:3px 10px; border-radius:20px; background:var(--chip); font-size:.72rem; font-weight:700; color:var(--primary);}
+  .queue-item{display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--line); gap:8px;}
+  .queue-item:last-child{border-bottom:none;}
+  .toast{
+    position:fixed; left:16px; right:16px; bottom:84px; background:var(--ink); color:var(--bg);
+    padding:12px 16px; border-radius:10px; font-size:.9rem; text-align:center; opacity:0;
+    transform:translateY(10px); transition:.2s; pointer-events:none; z-index:50;
+  }
+  .toast.show{opacity:1; transform:translateY(0);}
+  a{color:var(--primary);}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>Gestor SSS</h1>
+  <div style="display:flex;align-items:center;gap:6px;">
+    <span class="subtle" id="connLabel">verificando...</span>
+    <span class="dot off" id="connDot"></span>
+  </div>
+</div>
+
+<main>
+
+  <!-- ===================== NOVO GASTO ===================== -->
+  <section class="screen active" id="screen-novo">
+    <div class="card">
+      <div class="photo-box" id="photoBox">
+        <span id="photoHint">📷 Toque para anexar foto ou print do gasto<br><span class="subtle">opcional — fica só no seu celular, ajuste o valor abaixo</span></span>
+        <input type="file" accept="image/*" capture="environment" id="photoInput" />
+      </div>
+
+      <label for="fData">Data do gasto</label>
+      <input type="date" id="fData" />
+
+      <label for="fValor">Valor (MXN)</label>
+      <div class="valor-wrap">
+        <span class="cur">$</span>
+        <input type="number" inputmode="decimal" step="0.01" min="0" id="fValor" placeholder="0.00" />
+      </div>
+
+      <label for="fEtiqueta">Etiqueta</label>
+      <select id="fEtiqueta"></select>
+
+      <label for="fDescricao">Descrição</label>
+      <input type="text" id="fDescricao" placeholder="Ex.: Supermercado, Uber, Farmácia..." />
+
+      <label for="fForma">Forma de pagamento</label>
+      <select id="fForma"></select>
+
+      <div class="collapse" id="cartaoBox">
+        <label for="fCartao">Cartão</label>
+        <select id="fCartao"></select>
+        <label for="fParcelas">Quantas parcelas?</label>
+        <input type="number" min="1" max="36" step="1" value="1" id="fParcelas" />
+      </div>
+
+      <button type="button" class="toggle-btn" id="btnReembolso">
+        Gasto reembolsável? <span class="sw"></span>
+      </button>
+      <div class="collapse" id="reembolsoBox">
+        <label for="fPct">Quanto pode ser reembolsado?</label>
+        <div class="row">
+          <input type="range" min="0" max="100" step="5" value="100" id="fPctRange" />
+          <input type="number" min="0" max="100" step="1" value="100" id="fPct" style="max-width:80px;" />
+        </div>
+        <span class="subtle">% do valor total do gasto</span>
+      </div>
+
+      <label for="fObs">Observação (opcional)</label>
+      <textarea id="fObs" rows="2"></textarea>
+
+      <button type="button" class="primary" id="btnSalvar">Salvar gasto</button>
+    </div>
+  </section>
+
+  <!-- ===================== DASHBOARD ===================== -->
+  <section class="screen" id="screen-dash">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <h3>Hoje</h3><span class="pill" id="pillHoje">—</span>
+      </div>
+      <div class="metric"><span class="lbl">Gasto hoje</span><span class="val" id="dHoje">$0.00</span></div>
+      <div class="metric"><span class="lbl">Sugerido por dia</span><span class="val" id="dHojeOrc">$0.00</span></div>
+      <div class="bar"><i id="barHoje" style="width:0%"></i></div>
+    </div>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <h3>Esta semana</h3><span class="pill" id="pillSemana">—</span>
+      </div>
+      <div class="metric"><span class="lbl">Realizado</span><span class="val" id="dSemana">$0.00</span></div>
+      <div class="metric"><span class="lbl">Orçamento</span><span class="val" id="dSemanaOrc">$0.00</span></div>
+      <div class="bar"><i id="barSemana" style="width:0%"></i></div>
+    </div>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <h3>Este mês</h3><span class="pill" id="pillMes">—</span>
+      </div>
+      <div class="metric"><span class="lbl">Realizado</span><span class="val" id="dMes">$0.00</span></div>
+      <div class="metric"><span class="lbl">Orçamento</span><span class="val" id="dMesOrc">$0.00</span></div>
+      <div class="bar"><i id="barMes" style="width:0%"></i></div>
+      <p class="subtle" style="margin-top:10px;">Valores de cartão de crédito já consideram a data estimada da fatura, não a data da compra.</p>
+    </div>
+    <button type="button" class="secondary" id="btnAtualizarDash">Atualizar</button>
+    <p class="subtle" id="dashUpdated" style="text-align:center;margin-top:8px;"></p>
+  </section>
+
+  <!-- ===================== CONFIGURAÇÕES ===================== -->
+  <section class="screen" id="screen-config">
+    <div class="card">
+      <h3>Conexão com a planilha</h3>
+      <p class="subtle">Cole aqui a URL do Apps Script (veja as instruções no topo do arquivo Code.gs).</p>
+      <label for="fUrl">URL do App da Web</label>
+      <input type="url" id="fUrl" placeholder="https://script.google.com/macros/s/.../exec" />
+      <button type="button" class="secondary" id="btnTestar">Testar conexão</button>
+      <button type="button" class="secondary" id="btnConfig">Atualizar etiquetas e cartões</button>
+      <p class="subtle" id="configStatus" style="margin-top:8px;"></p>
+    </div>
+
+    <div class="card">
+      <h3>Pendentes de sincronizar</h3>
+      <div id="queueList"><p class="subtle">Nenhum gasto pendente.</p></div>
+      <button type="button" class="secondary" id="btnSync">Sincronizar agora</button>
+    </div>
+
+    <div class="card">
+      <h3>Planilha</h3>
+      <p class="subtle">Abra a planilha de controle completa (projetado x real, gestão de cartão, etc.) a qualquer momento.</p>
+      <a id="linkPlanilha" href="#" target="_blank" rel="noopener">Abrir no Google Sheets →</a>
+    </div>
+  </section>
+
+</main>
+
+<nav class="tabs">
+  <button data-screen="novo" class="active"><span class="ic">➕</span>Novo gasto</button>
+  <button data-screen="dash"><span class="ic">📊</span>Dashboard</button>
+  <button data-screen="config"><span class="ic">⚙️</span>Configurações</button>
+</nav>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  var SHEET_URL = "https://docs.google.com/spreadsheets/d/1WtjcuyhKY5SguTst0CYSqmHu8RzhxNGAF8Og8xSfgCE/edit";
+  document.getElementById("linkPlanilha").href = SHEET_URL;
+
+  // ---------- armazenamento local ----------
+  var LS = {
+    get:function(k,fallback){ try{ var v=localStorage.getItem(k); return v?JSON.parse(v):fallback; }catch(e){ return fallback; } },
+    set:function(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+  };
+  var state = {
+    settings: LS.get("sss_settings", { url: "" }),
+    config: LS.get("sss_config", null),
+    queue: LS.get("sss_queue", []),
+    dashboard: LS.get("sss_dashboard", null),
+  };
+
+  var DEFAULT_CONFIG = {
+    formasPagamento: ["Dinheiro","Débito","Transferência/PIX","Cartão de Crédito","Outro"],
+    etiquetas: [
+      {nome:"Alimentação Casa (Mercado)"},{nome:"Restaurantes/Ifood/Delivery"},{nome:"Água Casa"},
+      {nome:"Energia Casa"},{nome:"Gás Casa"},{nome:"Internet/TV"},{nome:"Aluguel/Hipoteca"},
+      {nome:"Celulares"},{nome:"Pets"},{nome:"Lazer"},{nome:"Escola/Educação Filhos"},{nome:"Beleza"},
+      {nome:"Transporte (Uber/Táxi)"},{nome:"Combustível Carro"},{nome:"Roupas"},{nome:"Remédios/Saúde"},
+      {nome:"Outros"}
+    ],
+    cartoes: []
+  };
+
+  function cfg(){ return state.config || DEFAULT_CONFIG; }
+
+  // ---------- navegação ----------
+  var screens = { novo: document.getElementById("screen-novo"), dash: document.getElementById("screen-dash"), config: document.getElementById("screen-config") };
+  document.querySelectorAll("nav.tabs button").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      document.querySelectorAll("nav.tabs button").forEach(function(b){ b.classList.remove("active"); });
+      btn.classList.add("active");
+      Object.keys(screens).forEach(function(k){ screens[k].classList.toggle("active", k===btn.dataset.screen); });
+      if (btn.dataset.screen === "dash") refreshDashboard();
+      if (btn.dataset.screen === "config") renderQueue();
+    });
+  });
+
+  function toast(msg){
+    var t = document.getElementById("toast");
+    t.textContent = msg; t.classList.add("show");
+    clearTimeout(t._h); t._h = setTimeout(function(){ t.classList.remove("show"); }, 2600);
+  }
+
+  // ---------- conexão ----------
+  function setConn(ok, label){
+    document.getElementById("connDot").className = "dot " + (ok ? "on" : "off");
+    document.getElementById("connLabel").textContent = label;
+  }
+  function hasUrl(){ return !!(state.settings.url && state.settings.url.indexOf("http") === 0); }
+  function updateConnLabel(){
+    if (!hasUrl()) return setConn(false, "sem planilha");
+    setConn(navigator.onLine, navigator.onLine ? "online" : "offline");
+  }
+  window.addEventListener("online", updateConnLabel);
+  window.addEventListener("offline", updateConnLabel);
+
+  function apiGet(action){
+    if (!hasUrl()) return Promise.reject(new Error("Configure a URL da planilha em Configurações."));
+    return fetch(state.settings.url + "?action=" + action, { method:"GET" })
+      .then(function(r){ return r.json(); });
+  }
+  function apiPost(payload){
+    if (!hasUrl()) return Promise.reject(new Error("Configure a URL da planilha em Configurações."));
+    return fetch(state.settings.url, {
+      method:"POST",
+      body: JSON.stringify(payload), // sem header custom -> evita preflight CORS
+    }).then(function(r){ return r.json(); });
+  }
+
+  // ---------- preencher formulário com config ----------
+  function fillSelect(sel, items, labelFn, valueFn){
+    sel.innerHTML = "";
+    items.forEach(function(it){
+      var opt = document.createElement("option");
+      opt.value = valueFn ? valueFn(it) : it;
+      opt.textContent = labelFn ? labelFn(it) : it;
+      sel.appendChild(opt);
+    });
+  }
+  function renderFormOptions(){
+    var c = cfg();
+    fillSelect(document.getElementById("fEtiqueta"), c.etiquetas, function(e){ return e.nome; }, function(e){ return e.nome; });
+    fillSelect(document.getElementById("fForma"), c.formasPagamento);
+    fillSelect(document.getElementById("fCartao"), c.cartoes.length ? c.cartoes : [{nome:"(cadastre um cartão na planilha)"}], function(c){ return c.nome; }, function(c){ return c.nome; });
+  }
+
+  // ---------- formulário: campos condicionais ----------
+  var fForma = document.getElementById("fForma");
+  var cartaoBox = document.getElementById("cartaoBox");
+  function syncFormaFields(){
+    cartaoBox.classList.toggle("show", fForma.value === "Cartão de Crédito");
+  }
+  fForma.addEventListener("change", syncFormaFields);
+
+  var reembolsoOn = false;
+  var btnReembolso = document.getElementById("btnReembolso");
+  var reembolsoBox = document.getElementById("reembolsoBox");
+  btnReembolso.addEventListener("click", function(){
+    reembolsoOn = !reembolsoOn;
+    btnReembolso.classList.toggle("on", reembolsoOn);
+    reembolsoBox.classList.toggle("show", reembolsoOn);
+  });
+  var fPctRange = document.getElementById("fPctRange"), fPct = document.getElementById("fPct");
+  fPctRange.addEventListener("input", function(){ fPct.value = fPctRange.value; });
+  fPct.addEventListener("input", function(){ fPctRange.value = fPct.value; });
+
+  // ---------- foto (só preview local, não é enviada) ----------
+  var photoInput = document.getElementById("photoInput");
+  var photoBox = document.getElementById("photoBox");
+  var photoHint = document.getElementById("photoHint");
+  photoInput.addEventListener("change", function(){
+    var file = photoInput.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(){
+      photoHint.outerHTML = '<img src="' + reader.result + '" alt="foto do gasto">';
+    };
+    reader.readAsDataURL(file);
+  });
+
+  function resetForm(){
+    document.getElementById("fData").value = new Date().toISOString().slice(0,10);
+    document.getElementById("fValor").value = "";
+    document.getElementById("fDescricao").value = "";
+    document.getElementById("fParcelas").value = 1;
+    document.getElementById("fObs").value = "";
+    reembolsoOn = false; btnReembolso.classList.remove("on"); reembolsoBox.classList.remove("show");
+    fPct.value = 100; fPctRange.value = 100;
+    syncFormaFields();
+    photoInput.value = "";
+    var ph = document.querySelector("#photoBox img");
+    if (ph) ph.outerHTML = '<span id="photoHint">📷 Toque para anexar foto ou print do gasto<br><span class="subtle">opcional — fica só no seu celular, ajuste o valor abaixo</span></span>';
+  }
+
+  // ---------- salvar gasto ----------
+  document.getElementById("btnSalvar").addEventListener("click", function(){
+    var valor = parseFloat(document.getElementById("fValor").value);
+    if (!valor || valor <= 0){ toast("Informe o valor do gasto."); return; }
+    var etiqueta = document.getElementById("fEtiqueta").value;
+    if (!etiqueta){ toast("Escolha uma etiqueta."); return; }
+    var forma = document.getElementById("fForma").value;
+    var isCartao = forma === "Cartão de Crédito";
+    var payload = {
+      data: document.getElementById("fData").value,
+      valorTotal: valor,
+      etiqueta: etiqueta,
+      descricao: document.getElementById("fDescricao").value,
+      formaPagamento: forma,
+      cartao: isCartao ? document.getElementById("fCartao").value : "",
+      parcelas: isCartao ? Math.max(1, parseInt(document.getElementById("fParcelas").value || 1, 10)) : 1,
+      reembolsavel: reembolsoOn,
+      percentReembolsavel: reembolsoOn ? (parseFloat(fPct.value || 0) / 100) : 0,
+      statusReembolso: reembolsoOn ? "Pendente" : "N/A",
+      origem: "App",
+      observacao: document.getElementById("fObs").value,
+      idLancamento: "L-" + Date.now().toString(36),
+      idCompra: "C-" + Date.now().toString(36),
+    };
+    enqueueAndSync(payload);
+    resetForm();
+  });
+
+  function enqueueAndSync(payload){
+    state.queue.push(payload);
+    LS.set("sss_queue", state.queue);
+    toast("Gasto salvo. Sincronizando...");
+    renderQueue();
+    syncQueue();
+  }
+
+  function syncQueue(){
+    if (!hasUrl() || !navigator.onLine || !state.queue.length) { renderQueue(); return; }
+    var next = state.queue[0];
+    apiPost(next).then(function(res){
+      if (res && res.ok){
+        state.queue.shift();
+        LS.set("sss_queue", state.queue);
+        toast("Sincronizado com a planilha ✓");
+        renderQueue();
+        if (state.queue.length) syncQueue();
+        refreshDashboard();
+      } else {
+        toast("Erro ao sincronizar: " + (res && res.error ? res.error : "desconhecido"));
+      }
+    }).catch(function(){
+      toast("Sem conexão - ficará pendente.");
+      setConn(false, "offline");
+    });
+  }
+
+  function renderQueue(){
+    var el = document.getElementById("queueList");
+    if (!state.queue.length){ el.innerHTML = '<p class="subtle">Nenhum gasto pendente.</p>'; return; }
+    el.innerHTML = state.queue.map(function(g, i){
+      return '<div class="queue-item"><span>' + (g.descricao || g.etiqueta) + ' — $' + Number(g.valorTotal).toFixed(2) + '</span>' +
+        '<button class="ghost" data-idx="' + i + '">remover</button></div>';
+    }).join("");
+    el.querySelectorAll("button[data-idx]").forEach(function(b){
+      b.addEventListener("click", function(){
+        state.queue.splice(parseInt(b.dataset.idx,10), 1);
+        LS.set("sss_queue", state.queue);
+        renderQueue();
+      });
+    });
+  }
+
+  // ---------- configurações ----------
+  var fUrl = document.getElementById("fUrl");
+  fUrl.value = state.settings.url || "";
+  fUrl.addEventListener("change", function(){
+    state.settings.url = fUrl.value.trim();
+    LS.set("sss_settings", state.settings);
+    updateConnLabel();
+  });
+  document.getElementById("btnTestar").addEventListener("click", function(){
+    state.settings.url = fUrl.value.trim(); LS.set("sss_settings", state.settings);
+    apiGet("ping").then(function(res){
+      document.getElementById("configStatus").textContent = res.ok ? "Conectado ✓ (" + res.time + ")" : "Erro: " + res.error;
+      updateConnLabel();
+    }).catch(function(e){
+      document.getElementById("configStatus").textContent = "Não foi possível conectar: " + e.message;
+    });
+  });
+  document.getElementById("btnConfig").addEventListener("click", function(){
+    apiGet("config").then(function(res){
+      if (!res.ok) { document.getElementById("configStatus").textContent = "Erro: " + res.error; return; }
+      state.config = res; LS.set("sss_config", res);
+      renderFormOptions();
+      document.getElementById("configStatus").textContent = "Etiquetas e cartões atualizados (" + res.etiquetas.length + " etiquetas, " + res.cartoes.length + " cartões).";
+      toast("Configuração atualizada.");
+    }).catch(function(e){
+      document.getElementById("configStatus").textContent = "Não foi possível atualizar: " + e.message;
+    });
+  });
+  document.getElementById("btnSync").addEventListener("click", syncQueue);
+
+  // ---------- dashboard ----------
+  function fmtMoney(v){ return "$" + Number(v||0).toLocaleString("es-MX", {minimumFractionDigits:2, maximumFractionDigits:2}); }
+  function paintBar(barEl, pillEl, real, orc){
+    var pct = orc > 0 ? Math.min(100, (real/orc)*100) : 0;
+    barEl.style.width = pct + "%";
+    barEl.classList.toggle("over", real > orc && orc > 0);
+    pillEl.textContent = orc > 0 ? Math.round((real/orc)*100) + "%" : "sem orçamento";
+    pillEl.style.color = (real > orc && orc > 0) ? "var(--bad)" : "var(--good)";
+  }
+  function paintDashboard(d){
+    document.getElementById("dHoje").textContent = fmtMoney(d.gastoHoje);
+    document.getElementById("dHojeOrc").textContent = fmtMoney(d.orcamentoDiario);
+    paintBar(document.getElementById("barHoje"), document.getElementById("pillHoje"), d.gastoHoje, d.orcamentoDiario);
+
+    document.getElementById("dSemana").textContent = fmtMoney(d.realizadoSemana);
+    document.getElementById("dSemanaOrc").textContent = fmtMoney(d.orcamentoSemana);
+    paintBar(document.getElementById("barSemana"), document.getElementById("pillSemana"), d.realizadoSemana, d.orcamentoSemana);
+
+    document.getElementById("dMes").textContent = fmtMoney(d.realizadoMes);
+    document.getElementById("dMesOrc").textContent = fmtMoney(d.orcamentoMes);
+    paintBar(document.getElementById("barMes"), document.getElementById("pillMes"), d.realizadoMes, d.orcamentoMes);
+  }
+  function refreshDashboard(){
+    if (state.dashboard) paintDashboard(state.dashboard);
+    apiGet("dashboard").then(function(res){
+      if (!res.ok) { toast("Erro ao buscar dashboard: " + res.error); return; }
+      state.dashboard = res; LS.set("sss_dashboard", res);
+      paintDashboard(res);
+      document.getElementById("dashUpdated").textContent = "Atualizado agora";
+      updateConnLabel();
+    }).catch(function(){
+      document.getElementById("dashUpdated").textContent = state.dashboard ? "Mostrando últimos dados (offline)" : "Sem dados ainda - configure a conexão";
+    });
+  }
+  document.getElementById("btnAtualizarDash").addEventListener("click", refreshDashboard);
+
+  // ---------- inicialização ----------
+  renderFormOptions();
+  resetForm();
+  renderQueue();
+  updateConnLabel();
+  if (navigator.onLine) syncQueue();
+  if (hasUrl() && !state.config) document.getElementById("btnConfig").click();
+
+  if ("serviceWorker" in navigator && location.protocol !== "file:") {
+    navigator.serviceWorker.register("sw.js").catch(function(){});
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "name": "Gestor SSS - Gastos",
+  "short_name": "Gestor SSS",
+  "description": "Captura rápida de gastos da família, em pesos mexicanos.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f7f3ec",
+  "theme_color": "#1f4d42",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
