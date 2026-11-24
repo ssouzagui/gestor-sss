@@ -264,6 +264,13 @@
   var SHEET_URL = "https://docs.google.com/spreadsheets/d/1WtjcuyhKY5SguTst0CYSqmHu8RzhxNGAF8Og8xSfgCE/edit";
   document.getElementById("linkPlanilha").href = SHEET_URL;
 
+  // URL padrão de fábrica do Apps Script implantado. Serve de rede de segurança:
+  // se o navegador limpar o armazenamento local (localStorage) por qualquer motivo,
+  // o app volta a se conectar sozinho em vez de ficar "sem planilha" até alguém
+  // colar a URL de novo manualmente. Se um dia a implantação do Apps Script mudar
+  // (nova URL), atualize também esta constante.
+  var DEFAULT_URL = "https://script.google.com/macros/s/AKfycbz3Lx9Cf_HC3dE5_DyE3FPDJgGc587qgnl-dxDDBRRSzzhYNlWPRC8ENk1f1EjTaYes/exec";
+
   // ---------- armazenamento local ----------
   var LS = {
     get:function(k,fallback){ try{ var v=localStorage.getItem(k); return v?JSON.parse(v):fallback; }catch(e){ return fallback; } },
@@ -275,6 +282,13 @@
     queue: LS.get("sss_queue", []),
     dashboard: LS.get("sss_dashboard", null),
   };
+
+  // Autorrecuperação: se não há URL salva (primeira vez, ou storage foi limpo),
+  // usa a URL padrão de fábrica e já grava de volta no localStorage.
+  if (!state.settings.url) {
+    state.settings.url = DEFAULT_URL;
+    LS.set("sss_settings", state.settings);
+  }
 
   var DEFAULT_CONFIG = {
     formasPagamento: ["Dinheiro","Débito","Transferência/PIX","Cartão de Crédito","Outro"],
@@ -435,10 +449,18 @@
     syncQueue();
   }
 
+  // Trava contra envios duplicados: sem isso, tocar em "Sincronizar agora" mais de
+  // uma vez (ou uma nova tentativa automática) enquanto a chamada anterior ainda
+  // está no ar reenvia o mesmo gasto, porque ele só sai da fila depois da resposta
+  // de sucesso chegar.
+  var syncing = false;
   function syncQueue(){
+    if (syncing) return;
     if (!hasUrl() || !navigator.onLine || !state.queue.length) { renderQueue(); return; }
+    syncing = true;
     var next = state.queue[0];
     apiPost(next).then(function(res){
+      syncing = false;
       if (res && res.ok){
         state.queue.shift();
         LS.set("sss_queue", state.queue);
@@ -450,6 +472,7 @@
         toast("Erro ao sincronizar: " + (res && res.error ? res.error : "desconhecido"));
       }
     }).catch(function(){
+      syncing = false;
       toast("Sem conexão - ficará pendente.");
       setConn(false, "offline");
     });
