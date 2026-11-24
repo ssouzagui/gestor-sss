@@ -290,14 +290,23 @@
     LS.set("sss_settings", state.settings);
   }
 
+  // Esta lista é só uma rede de segurança para quando o app não conseguir falar
+  // com a planilha (ex.: primeiro uso, offline). Ela precisa ter EXATAMENTE os
+  // mesmos nomes de etiqueta da aba "Etiquetas" da planilha - um nome diferente
+  // (ex.: "Transporte (Uber/Táxi)" em vez de "Transporte") faz o gasto ser
+  // gravado com uma etiqueta que a planilha não reconhece, e ele silenciosamente
+  // some dos cálculos de gasto diário/semanal/mensal (Tipo fica em branco).
+  // Sempre que a aba Etiquetas mudar, atualize esta lista também.
   var DEFAULT_CONFIG = {
     formasPagamento: ["Dinheiro","Débito","Transferência/PIX","Cartão de Crédito","Outro"],
     etiquetas: [
-      {nome:"Alimentação Casa (Mercado)"},{nome:"Restaurantes/Ifood/Delivery"},{nome:"Água Casa"},
-      {nome:"Energia Casa"},{nome:"Gás Casa"},{nome:"Internet/TV"},{nome:"Aluguel/Hipoteca"},
-      {nome:"Celulares"},{nome:"Pets"},{nome:"Lazer"},{nome:"Escola/Educação Filhos"},{nome:"Beleza"},
-      {nome:"Transporte (Uber/Táxi)"},{nome:"Combustível Carro"},{nome:"Roupas"},{nome:"Remédios/Saúde"},
-      {nome:"Outros"}
+      {nome:"Salário/Bônus"},{nome:"Reembolso"},{nome:"Transferência Recebida"},
+      {nome:"Aluguel"},{nome:"Contas Residenciais"},{nome:"Alimentação Casa (Mercado)"},
+      {nome:"Restaurantes/Delivery"},{nome:"Compras/Bazar"},{nome:"Vestuário"},
+      {nome:"Transporte"},{nome:"Carro"},{nome:"Saúde"},{nome:"Celulares"},
+      {nome:"Lazer/Viagens"},{nome:"Pets"},{nome:"Beleza"},{nome:"Educação"},
+      {nome:"Presentes/Doações"},{nome:"Tarifas e Juros"},{nome:"Outros"},
+      {nome:"Transferência Enviada"},{nome:"Movimentação Financeira (Poupança/Saque/Empréstimo)"}
     ],
     cartoes: []
   };
