@@ -408,8 +408,15 @@
     reader.readAsDataURL(file);
   });
 
+  // Data de hoje no fuso local do usuário. new Date().toISOString() usa UTC,
+  // o que "vira o dia" à noite (ex.: 22h no México já é dia seguinte em UTC).
+  function todayLocalISO(){
+    var d = new Date();
+    return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+  }
+
   function resetForm(){
-    document.getElementById("fData").value = new Date().toISOString().slice(0,10);
+    document.getElementById("fData").value = todayLocalISO();
     document.getElementById("fValor").value = "";
     document.getElementById("fDescricao").value = "";
     document.getElementById("fParcelas").value = 1;
