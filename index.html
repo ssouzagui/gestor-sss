@@ -408,20 +408,15 @@
     reader.readAsDataURL(file);
   });
 
-  // toISOString() converte para UTC, não para o horário local do aparelho: à
-  // noite no México (UTC-6), isso já marcava a data de AMANHÃ em vez de hoje.
-  // Esta função monta a data a partir do relógio local (ano/mês/dia), que
-  // segue o fuso configurado no próprio celular.
-  function dataLocalHoje(){
+  // Data de hoje no fuso local do usuário. new Date().toISOString() usa UTC,
+  // o que "vira o dia" à noite (ex.: 22h no México já é dia seguinte em UTC).
+  function todayLocalISO(){
     var d = new Date();
-    var ano = d.getFullYear();
-    var mes = String(d.getMonth() + 1).padStart(2, "0");
-    var dia = String(d.getDate()).padStart(2, "0");
-    return ano + "-" + mes + "-" + dia;
+    return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
   }
 
   function resetForm(){
-    document.getElementById("fData").value = dataLocalHoje();
+    document.getElementById("fData").value = todayLocalISO();
     document.getElementById("fValor").value = "";
     document.getElementById("fDescricao").value = "";
     document.getElementById("fParcelas").value = 1;
